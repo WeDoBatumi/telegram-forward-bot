@@ -40,3 +40,26 @@ async def main():
 
 with client:
     client.loop.run_until_complete(main())
+    import asyncio
+from aiohttp import web
+
+async def handle(request):
+    return web.Response(text="Bot is running")
+
+app = web.Application()
+app.router.add_get('/', handle)
+
+# Запускаем веб-сервер в фоне
+async def start_web():
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8000)
+    await site.start()
+
+async def main():
+    print("Бот запущен. Ожидает новые сообщения...")
+    await start_web()
+    await client.run_until_disconnected()
+
+with client:
+    client.loop.run_until_complete(main())
