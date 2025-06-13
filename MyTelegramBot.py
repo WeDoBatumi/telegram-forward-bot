@@ -40,7 +40,7 @@ async def main():
 
 with client:
     client.loop.run_until_complete(main())
-    import asyncio
+import asyncio
 from aiohttp import web
 
 async def handle(request):
@@ -49,7 +49,6 @@ async def handle(request):
 app = web.Application()
 app.router.add_get('/', handle)
 
-# Запускаем веб-сервер в фоне
 async def start_web():
     runner = web.AppRunner(app)
     await runner.setup()
