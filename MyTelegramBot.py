@@ -1,3 +1,6 @@
+import telethon
+print("Telethon version:", telethon.__version__)
+
 import os
 from telethon import TelegramClient, events
 from aiohttp import web
