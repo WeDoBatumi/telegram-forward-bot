@@ -1,4 +1,6 @@
+import os
 from telethon import TelegramClient, events
+from aiohttp import web
 import asyncio
 
 # 🔐 Твои данные
@@ -15,7 +17,21 @@ stop_words = ['работа', 'работы', 'apple macbook', 'ipad']
 # 📬 Куда пересылать
 target_user = 'WeDo_Batumi'  # без @
 
+# Получаем порт из переменной окружения Render (если нет — 8000)
+PORT = int(os.environ.get('PORT', 8000))
+
 client = TelegramClient(session_name, api_id, api_hash)
+
+# Веб-сервер, чтобы Render видел открытый порт
+app = web.Application()
+app.router.add_get('/', lambda request: web.Response(text="Bot is running"))
+
+async def start_web():
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    await site.start()
+    print(f"Web server started on port {PORT}")
 
 @client.on(events.NewMessage(chats=None))  # None — слушаем все чаты
 async def handler(event):
@@ -36,27 +52,7 @@ async def handler(event):
 
 async def main():
     print("Бот запущен. Ожидает новые сообщения...")
-    await client.run_until_disconnected()
-
-with client:
-    client.loop.run_until_complete(main())
-import asyncio
-from aiohttp import web
-
-async def handle(request):
-    return web.Response(text="Bot is running")
-
-app = web.Application()
-app.router.add_get('/', handle)
-
-async def start_web():
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8000)
-    await site.start()
-
-async def main():
-    print("Бот запущен. Ожидает новые сообщения...")
+    # Запускаем веб-сервер параллельно с клиентом
     await start_web()
     await client.run_until_disconnected()
 
