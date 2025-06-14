@@ -1,6 +1,3 @@
-import telethon
-print("Telethon version:", telethon.__version__)
-
 import os
 from telethon import TelegramClient, events
 from aiohttp import web
@@ -48,10 +45,16 @@ async def handler(event):
     # Проверяем ключевые слова
     if any(keyword.lower() in message_text.lower() for keyword in keywords):
         try:
-            await client.forward_messages(entity=target_user, messages=event.message)
-            print(f"Переслано сообщение из: {event.chat.title or event.chat.username}")
+            chat = await event.get_chat()
+            if hasattr(chat, 'username') and chat.username:
+                # Формируем ссылку на сообщение
+                message_link = f"https://t.me/{chat.username}/{event.message.id}"
+                await client.send_message(target_user, f"🔗 [Открыть сообщение]({message_link})", link_preview=False)
+                print(f"Ссылка отправлена: {message_link}")
+            else:
+                print("Невозможно создать ссылку — у чата нет username.")
         except Exception as e:
-            print(f"Ошибка пересылки: {e}")
+            print(f"Ошибка при обработке сообщения: {e}")
 
 async def main():
     print("Бот запущен. Ожидает новые сообщения...")
