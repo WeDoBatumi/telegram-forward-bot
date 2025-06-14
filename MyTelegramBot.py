@@ -3,27 +3,25 @@ from telethon import TelegramClient, events
 from aiohttp import web
 import asyncio
 
-# 🔐 Твои данные
+# 🔐 Данные авторизации
 api_id = 28262196
 api_hash = '3312838d662c74183e9adacb005bb2fc'
 session_name = 'my_main_account'
 
 # 🔑 Ключевые слова
 keywords = ['ноут', 'ноутбук', 'мак', 'мак бук', 'макбук', 'mac', 'mac book', 'macbook']
-
-# 🚫 Слова-исключения
+# 🚫 Исключения
 stop_words = ['работа', 'работы', 'apple macbook', 'ipad']
 
 # 📬 Куда пересылать
-target_user = 'WeDo_Batumi'  # без @
+target_user = 'WeDo_Batumi'
 
-# 🌐 Порт для Render
+# 🌐 Порт Render
 PORT = int(os.environ.get('PORT', 8000))
 
-# 🤖 Клиент Telethon
 client = TelegramClient(session_name, api_id, api_hash)
 
-# 🌍 Простой веб-сервер для Render
+# 🌍 Web-сервер для Render
 app = web.Application()
 app.router.add_get('/', lambda request: web.Response(text="Bot is running"))
 
@@ -32,49 +30,45 @@ async def start_web():
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
-    print(f"✅ Web server started on port {PORT}")
+    print(f"✅ Web-сервер на порту {PORT}")
 
-# 📩 Обработка новых сообщений
-@client.on(events.NewMessage(chats=None))  # Слушаем все диалоги, где есть клиент
+@client.on(events.NewMessage(chats=None))
 async def handler(event):
     message_text = event.message.message or ""
+    sender = await event.get_sender()
 
-    print("📥 Получено сообщение:", message_text[:100])
-    print("📡 Из чата:", getattr(event.chat, 'title', 'Unknown'))
-    print("🔢 Chat ID:", event.chat_id)
-    print("🔗 Username:", getattr(event.chat, 'username', 'нет username'))
-
-    # Проверка стоп-слов
-    if any(stop_word.lower() in message_text.lower() for stop_word in stop_words):
-        print("⛔️ Стоп-слово найдено, пропускаем сообщение.")
+    # Стоп-слова
+    if any(word in message_text.lower() for word in stop_words):
+        print("⛔️ Найдено стоп-слово, сообщение проигнорировано.")
         return
 
-    # Проверка ключевых слов
-    if any(keyword.lower() in message_text.lower() for keyword in keywords):
+    # Ключевые слова
+    if any(word in message_text.lower() for word in keywords):
         try:
-            # Получаем ссылку (если возможно)
+            # Получить ссылку
             try:
                 link = await event.message.get_permalink()
-            except Exception as e:
-                print("⚠️ Не удалось получить ссылку:", e)
+            except:
                 link = None
 
-            full_text = message_text.strip()
-            if link:
-                full_text += f"\n\n👉 {link}"
-            else:
-                full_text += "\n\n(ссылка недоступна)"
+            # Название или username чата
+            chat_title = getattr(event.chat, 'title', None)
+            chat_username = getattr(event.chat, 'username', None)
 
-            # Отправляем в указанный канал
-            await client.send_message(entity=target_user, message=full_text)
+            source_name = f"💬 {chat_title}" if chat_title else f"👤 @{chat_username}" if chat_username else "🔹 Неизвестный источник"
+            message_link = f"🔗 {link}" if link else "⚠️ Ссылка недоступна"
 
-            print("✅ Сообщение переслано.")
+            text_to_send = f"{source_name}\n\n{message_text.strip()}\n\n{message_link}"
+
+            await client.send_message(target_user, text_to_send)
+            print("✅ Переслано:", source_name)
+
         except Exception as e:
-            print(f"❌ Ошибка при отправке: {e}")
+            print("❌ Ошибка пересылки:", e)
 
 # 🚀 Запуск
 async def main():
-    print("🚀 Бот запущен. Ожидает новые сообщения...")
+    print("🚀 Бот запущен и слушает сообщения.")
     await start_web()
     await client.run_until_disconnected()
 
