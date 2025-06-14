@@ -32,37 +32,49 @@ async def start_web():
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
-    print(f"Web server started on port {PORT}")
+    print(f"✅ Web server started on port {PORT}")
 
 # 📩 Обработка новых сообщений
-@client.on(events.NewMessage(chats=None))  # Слушаем все публичные чаты и группы
+@client.on(events.NewMessage(chats=None))  # Слушаем все диалоги, где есть клиент
 async def handler(event):
     message_text = event.message.message or ""
 
+    print("📥 Получено сообщение:", message_text[:100])
+    print("📡 Из чата:", getattr(event.chat, 'title', 'Unknown'))
+    print("🔢 Chat ID:", event.chat_id)
+    print("🔗 Username:", getattr(event.chat, 'username', 'нет username'))
+
     # Проверка стоп-слов
     if any(stop_word.lower() in message_text.lower() for stop_word in stop_words):
-        print("Сообщение содержит стоп-слова, пропускаем")
+        print("⛔️ Стоп-слово найдено, пропускаем сообщение.")
         return
 
     # Проверка ключевых слов
     if any(keyword.lower() in message_text.lower() for keyword in keywords):
         try:
-            # Получаем ссылку на оригинал сообщения
-            link = await event.message.get_permalink()
+            # Получаем ссылку (если возможно)
+            try:
+                link = await event.message.get_permalink()
+            except Exception as e:
+                print("⚠️ Не удалось получить ссылку:", e)
+                link = None
 
-            # Формируем текст: оригинал + ссылка
-            full_text = f"{message_text.strip()}\n\n👉 {link}"
+            full_text = message_text.strip()
+            if link:
+                full_text += f"\n\n👉 {link}"
+            else:
+                full_text += "\n\n(ссылка недоступна)"
 
             # Отправляем в указанный канал
             await client.send_message(entity=target_user, message=full_text)
 
-            print(f"Отправлено сообщение из: {event.chat.title or event.chat.username}")
+            print("✅ Сообщение переслано.")
         except Exception as e:
-            print(f"Ошибка при отправке: {e}")
+            print(f"❌ Ошибка при отправке: {e}")
 
 # 🚀 Запуск
 async def main():
-    print("Бот запущен. Ожидает новые сообщения...")
+    print("🚀 Бот запущен. Ожидает новые сообщения...")
     await start_web()
     await client.run_until_disconnected()
 
