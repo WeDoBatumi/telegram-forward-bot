@@ -1,5 +1,6 @@
 import os
 from telethon import TelegramClient, events
+from telethon.tl.types import Channel, Chat, User
 from aiohttp import web
 import asyncio
 
@@ -17,7 +18,7 @@ stop_words = ['работа', 'работы', 'apple macbook', 'ipad']
 # 📬 Куда пересылать
 target_user = 'WeDo_Batumi'  # без @
 
-# 🌐 Порт для Render
+# 🌐 Порт для Render (или локально 8000)
 PORT = int(os.environ.get('PORT', 8000))
 
 # 🤖 Клиент Telethon
@@ -35,7 +36,7 @@ async def start_web():
     print(f"🌐 Web server started on port {PORT}")
 
 # 📩 Обработка новых сообщений
-@client.on(events.NewMessage(chats=None))  # Все публичные чаты
+@client.on(events.NewMessage(chats=None))  # слушаем все публичные чаты и группы
 async def handler(event):
     message_text = event.message.message or ""
 
@@ -45,26 +46,38 @@ async def handler(event):
         return
 
     # Проверка ключевых слов
-    if any(keyword.lower() in message_text.lower() for keyword in keywords):
-        try:
-            # 🔁 Пересылаем оригинальное сообщение
-            await client.forward_messages(target_user, event.message)
-            print("✅ Переслано сообщение")
+    if not any(keyword.lower() in message_text.lower() for keyword in keywords):
+        return  # нет ключевых слов — игнорируем
 
-            # 🔗 Пытаемся собрать ссылку вручную
-            chat = event.chat
-            if chat and chat.username:
+    try:
+        # Пересылаем оригинальное сообщение
+        await client.forward_messages(target_user, event.message)
+        print("✅ Переслано сообщение")
+
+        # Получаем объект чата/канала/группы
+        chat = await event.get_chat()
+
+        if isinstance(chat, Channel):
+            # Это канал или супергруппа
+            if chat.username:
                 link = f"https://t.me/{chat.username}/{event.message.id}"
                 await client.send_message(target_user, f"👉 {link}")
-                print(f"🔗 Ссылка отправлена: {link}")
+                print(f"🔗 Отправлена ссылка: {link}")
             else:
-                await client.send_message(target_user, "❗ Не удалось получить ссылку (чат не публичный).")
-                print("⚠️ Ссылка не отправлена — нет username")
+                print("⚠️ Канал приватный — ссылка не отправлена")
+        elif isinstance(chat, Chat):
+            # Это классическая группа без username
+            print("ℹ️ Сообщение из группы — ссылки нет")
+        elif isinstance(chat, User):
+            # Личный чат
+            print("ℹ️ Сообщение из личного чата — ссылки нет")
+        else:
+            print("⚠️ Неизвестный тип чата")
 
-        except Exception as e:
-            print(f"❌ Ошибка при пересылке или отправке ссылки: {e}")
+    except Exception as e:
+        print(f"❌ Ошибка при обработке сообщения: {e}")
 
-# 🚀 Запуск
+# 🚀 Запуск бота
 async def main():
     print("🤖 Бот запущен. Ожидает новые сообщения...")
     await start_web()
