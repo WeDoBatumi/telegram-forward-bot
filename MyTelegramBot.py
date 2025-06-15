@@ -54,22 +54,19 @@ async def handler(event):
         await client.forward_messages(target_user, event.message)
         print("✅ Переслано сообщение")
 
-        # Получаем объект чата/канала/группы
-        chat = await event.get_chat()
+        # Используем event.chat (не get_chat())
+        chat = event.chat
 
         if isinstance(chat, Channel):
-            # Это канал или супергруппа
-            if chat.username:
+            if getattr(chat, "username", None):
                 link = f"https://t.me/{chat.username}/{event.message.id}"
                 await client.send_message(target_user, f"👉 {link}")
                 print(f"🔗 Отправлена ссылка: {link}")
             else:
-                print("⚠️ Канал приватный — ссылка не отправлена")
+                print("⚠️ Канал или группа без username — ссылка невозможна")
         elif isinstance(chat, Chat):
-            # Это классическая группа без username
-            print("ℹ️ Сообщение из группы — ссылки нет")
+            print("ℹ️ Сообщение из обычной группы — ссылки нет")
         elif isinstance(chat, User):
-            # Личный чат
             print("ℹ️ Сообщение из личного чата — ссылки нет")
         else:
             print("⚠️ Неизвестный тип чата")
